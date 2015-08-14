@@ -1,6 +1,8 @@
 # -*- coding: utf8 -*-
 #whitefirer@gmail.com
 #copyright@2015
+# -*- coding: utf-8 -*-
+
 import random
 
 CAT_COSTTYPE = 888
@@ -21,6 +23,7 @@ class CatGame:
 		self.row = 9
 		self.catpos = (4,4)
 		self.noway = 0
+		self.failed = False
 		self.map = [[0 for col in range(self.col)] for row in range(self.row)]
 		self.costmap = [[CostType(0,0) for col in range(self.col)] for row in range(self.row)]
 	
@@ -29,6 +32,7 @@ class CatGame:
 		self.InitCostMap()
 		self.SetCatPos(4,4)
 		self.noway = 0
+		self.failed = False
 		self.map[self.catpos[1]][self.catpos[0]] = CAT_MAPTYPE
 		self.UpdataCostMap()
 	
@@ -57,15 +61,23 @@ class CatGame:
 		self.costmap[row][col].cost = WALL_COSTTYPE
 		self.UpdataCostMap()
 		
+	def SetWall2(self, col, row):
+		self.map[row][col] = WALL_MAPTYPE
+		self.costmap[row][col].cost = WALL_COSTTYPE
+		
+	def IsWall(self, col, row):
+		return (self.map[row][col] == WALL_MAPTYPE)
+		
 	def GetNextPos(self):
 		col = self.catpos[0]
 		row =  self.catpos[1]
-		ways = self.costmap[row][col].ways
+		ways = 0
 		bestpos = -2,-2
 		bestcost = 100
 		if self.catpos[0] in [0, self.col-1] or self.catpos[1] in [0, self.row-1]:
+			self.failed = True
 			return -1,-1#代表输了
-		
+		#每个方向分开写是为了到时有新需求时方便改，而且用for循环也不够直观
 		if row%2 == 0:#奇数行
 			cost = self.costmap[row-1][col-1].cost#左上
 			if bestcost > cost:
@@ -74,6 +86,7 @@ class CatGame:
 			elif bestcost == cost:
 				if self.costmap[row-1][col-1].ways > ways:
 					bestpos = col-1,row-1
+					ways = self.costmap[row-1][col-1].ways
 		
 		cost = self.costmap[row-1][col].cost#上
 		if bestcost > cost:
@@ -82,6 +95,7 @@ class CatGame:
 		elif bestcost == cost:
 			if self.costmap[row-1][col].ways > ways:
 				bestpos = col,row-1
+				ways = self.costmap[row-1][col].ways
 			
 		if row%2:
 			cost = self.costmap[row-1][col+1].cost#右上
@@ -91,6 +105,7 @@ class CatGame:
 			elif bestcost == cost:
 				if self.costmap[row-1][col+1].ways > ways:
 					bestpos = col+1,row-1
+					ways = self.costmap[row-1][col+1].ways
 				
 		cost = self.costmap[row][col+1].cost#右
 		if bestcost > cost:
@@ -99,6 +114,7 @@ class CatGame:
 		elif bestcost == cost:
 			if self.costmap[row][col+1].ways > ways:
 				bestpos = col+1,row
+				ways = self.costmap[row][col+1].ways
 			
 		if row%2:#奇数行
 			cost = self.costmap[row+1][col+1].cost#右下
@@ -108,14 +124,16 @@ class CatGame:
 			elif bestcost == cost:
 				if self.costmap[row+1][col+1].ways > ways:
 					bestpos = col+1,row+1
+					ways = self.costmap[row+1][col+1].ways
 		
 		cost = self.costmap[row+1][col].cost#下
 		if bestcost > cost:
 			bestpos = col,row+1
+			bestcost = cost
 		elif bestcost == cost:
 			if self.costmap[row+1][col].ways > ways:
 				bestpos = col,row+1
-				bestcost = cost
+				ways = self.costmap[row+1][col].ways
 			
 		if row%2 == 0:
 			cost = self.costmap[row+1][col-1].cost#左下
@@ -125,20 +143,29 @@ class CatGame:
 			elif bestcost == cost:
 				if self.costmap[row+1][col-1].ways > ways:
 					bestpos = col-1,row+1
+					ways = self.costmap[row+1][col-1].ways
+					
+		cost = self.costmap[row][col-1].cost#左
+		if bestcost > cost:
+			bestpos = col-1,row
+			bestcost = cost
+		elif bestcost == cost:
+			if self.costmap[row][col-1].ways > ways:
+				bestpos = col-1,row
+				ways = self.costmap[row][col-1].ways
 					
 		print bestpos,self.costmap[bestpos[0]][bestpos[1]].ways		
 		return bestpos
 				
 		
 	def IsValid(self, col, row):
-		if self.map[row][col] == 0 and self.costmap[row][col].cost < WALL_COSTTYPE:
-			return True
-		return False
+		return (self.map[row][col] == 0 and self.costmap[row][col].cost < WALL_COSTTYPE)
+	
+	def IsFail(self):
+		return self.failed
 		
 	def IsFree(self, col, row):
-		if self.map[row][col] in [0, 8]:
-			return True
-		return False
+		return (self.map[row][col] in [0, 8])
 		
 	def GetCost(self, col, row):
 		cost = 0
@@ -202,8 +229,8 @@ class CatGame:
 				if min > cost:
 					min = cost
 					
-		#if min == 99:#99 or 0 cost pos waitting next cal
-		#	print 'Is there anything wrong?(%d, %d)'%(col, row)
+		#if min == 99:#99 or 0 cost pos waitting next cal,这里99不是问题
+		#	print 'xiaobai: Is there anything wrong?(%d, %d)'%(col, row)
 					
 		if (col, row) != self.catpos:
 			self.costmap[row][col].cost = min

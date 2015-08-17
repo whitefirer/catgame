@@ -2,6 +2,7 @@
 
 import random
 import copy
+import time
 
 CAT_MAPTYPE = 8
 WALL_MAPTYPE = 1
@@ -16,6 +17,7 @@ class CatGame:
 	def __init__(self):
 		self.col = 9
 		self.row = 9
+		self.quickmodlist = [1,3, 5, 7]#取模列表
 		self.catpos = (4,4)
 		self.noway = 0
 		self.failed = False
@@ -46,14 +48,17 @@ class CatGame:
 		self.wined = False
 		self.result = ''
 		self.map[self.catpos[1]][self.catpos[0]] = CAT_MAPTYPE
+		print 'NewCatGame'
 	
 	def InitMap(self):
 		self.map = [[0 for col in range(self.col)] for row in range(self.row)]
 		
 	def SetCatPos(self, col, row):
-		if col <= 0 or row <= 0 or col >= self.col or row >= self.row:
+		if col < 0 or row < 0 or col >= self.col or row >= self.row:
 			self.failed = True
 			return
+		if col in [0, self.col-1] or row in [0, self.row-1]:
+			self.failed = True
 		self.map[self.catpos[1]][self.catpos[0]] = NOWALL_MAPTYPE
 		self.catpos = (col,row)
 		self.map[self.catpos[1]][self.catpos[0]] = CAT_MAPTYPE
@@ -80,7 +85,7 @@ class CatGame:
 			return -1
 		ways = 0
 		dirs = self.dirs1
-		if row%2:
+		if row in self.quickmodlist:
 			dirs = self.dirs2
 		for d in dirs: #检查六个方向
 			if self.IsFree(col+d[0], row+d[1]):
@@ -102,18 +107,21 @@ class CatGame:
 		return -2,-2
 		
 	#迷宫算法
-	def GetPath(self, data, startx, starty, endx, endy): #主函数
+	def GetPath(self, data, startx, starty, endx, endy): #单终点
 		self.result='' #结果存放处
 		
 		def move(path,x,y,field): #移动函数
 			field[y][x] = len(path) + 1 #把自己变成1, 防止无限递归
+			pathlen = len(path)
+			resultlen = len(self.result)
+			if pathlen > resultlen and resultlen != 0:
+				return
 			if x in [0, 8] or y in [0, 8]: #如果到终点了
-				if len(self.result) > len(path) or len(self.result) == 0:
+				if len(self.result) >= len(path) or len(self.result) == 0:
 					self.result = path#将路径放入结果
 					return
-				#result.append(path)
 			dirs = self.dirs1
-			if y%2:
+			if y in self.quickmodlist:
 				dirs = self.dirs2
 			for d in dirs: #检查六个方向
 				if y+d[1] in range(0, 9) and x+d[0] in range(0, 9):
@@ -123,23 +131,21 @@ class CatGame:
 		
 		return self.result #将结果路径返回 
 		
-	def GetBestPath(self):
+	def GetBestPath(self):#另一种方式，每个边界点定点取路，实际效果跟直接用边界点集做结束条件一样
 		path = ''
 		for row in range(0, 9):
 			for col in [0, 8]:
-				self.InitMap()
+				data = copy.deepcopy(self.map)
 				if self.map[row][col] == 0:
-					temppath = self.GetPath(self.map, self.catpos[0], self.catpos[1], col, row)
+					temppath = self.GetPath(data, self.catpos[0], self.catpos[1], col, row)
 					if len(temppath) < len(path) or len(path) == 0:
 						path = temppath
-		dirs = self.dirs1
-		if y%2:
-			dirs = self.dirs2			
+		
 		for col in range(1, 8):
 			for row in [0, 8]:
-				self.InitMap()
+				data = copy.deepcopy(self.map)
 				if self.map[row][col] == 0:
-					temppath = self.GetPath(self.map, self.catpos[0], self.catpos[1], col, row)
+					temppath = self.GetPath(data, self.catpos[0], self.catpos[1], col, row)
 					if len(temppath) < len(path) or len(path) == 0:
 						path = temppath
 			
@@ -157,14 +163,15 @@ class CatGame:
 		def move(path,x,y,field): #移动函数
 			pathlen = len(path)
 			resultlen = len(self.result)
+			if pathlen >= resultlen and resultlen != 0:#这个条件很重要，当此时查找的路线已经比之前的长时就没必要查找了
+				return
 			field[y][x] = pathlen + 1 #把自己变成1, 防止无限递归
 			if x in [0, 8] or y in [0, 8]: #如果到终点了
 				if resultlen > pathlen or resultlen == 0:
 					self.result = path#将路径放入结果
-					#return
-				#result.append(path)
+					return
 			dirs = self.dirs1
-			if y%2:
+			if y in self.quickmodlist:#发现比取模快上那么点
 				dirs = self.dirs2
 			for d in dirs: #检查六个方向
 				if y+d[1] in range(0, 9) and x+d[0] in range(0, 9):
@@ -175,6 +182,7 @@ class CatGame:
 		#self.PrintMap()
 		#print ''
 		#self.PrintWaysMap()
+		#self.PrintAnyMap(data)
 		return self.result #将结果路径返回 
 		
 		
@@ -193,12 +201,22 @@ class CatGame:
 	def PrintMap(self):
 		idx = 0
 		for i in self.map:
-			if idx % 2:
+			if idx in self.quickmodlist:
 				print ' ' + str(i)
 			else:
 				print i
 			idx += 1
+		print self.result
+		print ''
 		
+	def PrintAnyMap(self, data):
+		idx = 0
+		for i in data:
+			if idx in self.quickmodlist:
+				print ' ' + str(i)
+			else:
+				print i
+			idx += 1
 		print self.result
 		print ''
 	
@@ -251,8 +269,12 @@ class CatGame:
 			
 			if self.map[row][col] == 0:
 				self.SetWall(col, row)
+			t1 = time.time()
 			x,y = self.GetNextPos()
+			dt = time.time() - t1
+			print dt
 			if x in [0,8] or y in [0,8]:
+				self.SetCatPos(x, y)
 				self.PrintMap()
 				print 'badend'
 				raw_input('>>>')

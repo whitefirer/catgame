@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-
+#whitefirer@gmail.com
+#copyright@2015
 import random
 import copy
 import time
@@ -19,15 +20,16 @@ class CatGame:
 		self.row = 9
 		self.quickmodlist = [1,3, 5, 7]#取模列表
 		self.catpos = (4,4)
+		self.oldpos = (4, 4)
 		self.noway = 0
 		self.failed = False
 		self.wined = False
 		self.result = ''
 		self.map = [[0 for col in range(self.col)] for row in range(self.row)]
 		#方向定义
-		self.dirs = [[-1,0,'L'],[0,-1,'U'],[1,0,'R'],[0,1,'D']]
-		self.dirs1 = [[-1,-1,'Q'],[-1,0,'L'],[0,-1,'U'],[1,0,'R'],[0,1,'D'],[-1,1,'Z']]
-		self.dirs2 = [[-1,0,'L'],[0,-1,'U'],[1,-1,'E'],[1,0,'R'],[1,1,'V'],[0,1,'D']]#%2=0
+		self.dirs = [[0,-1,'U'],[1,0,'R'],[0,1,'D'],[-1,0,'L']]
+		self.dirs1 = [[-1,-1,'Q'],[0,-1,'U'],[1,0,'R'],[0,1,'D'],[-1,1,'Z'],[-1,0,'L']]
+		self.dirs2 = [[0,-1,'U'],[1,-1,'E'],[1,0,'R'],[1,1,'V'],[0,1,'D'],[-1,0,'L']]#%2=0
 		self.dirsmap = {
 			'L' : (-1, 0),#左
 			'Q' : (-1, -1),#左上
@@ -43,12 +45,12 @@ class CatGame:
 	def InitGame(self):
 		self.InitMap()
 		self.SetCatPos(4,4)
+		self.oldpos = (4, 4)
 		self.noway = 0
 		self.failed = False
 		self.wined = False
 		self.result = ''
 		self.map[self.catpos[1]][self.catpos[0]] = CAT_MAPTYPE
-		print 'NewCatGame'
 	
 	def InitMap(self):
 		self.map = [[0 for col in range(self.col)] for row in range(self.row)]
@@ -59,6 +61,7 @@ class CatGame:
 			return
 		if col in [0, self.col-1] or row in [0, self.row-1]:
 			self.failed = True
+		self.oldpos = (self.catpos[0], self.catpos[1])
 		self.map[self.catpos[1]][self.catpos[0]] = NOWALL_MAPTYPE
 		self.catpos = (col,row)
 		self.map[self.catpos[1]][self.catpos[0]] = CAT_MAPTYPE
@@ -93,16 +96,35 @@ class CatGame:
 			
 		return ways
 	
+	def shuffle(self, dataList):
+		l = len(dataList)
+		for i in xrange(l):
+			j = random.randint(i,l-1)
+			dataList[j],dataList[i] = dataList[i],dataList[j]
 			
 	def GetRandomWays(self, col, row):
 		if col in [0, self.col-1] or row in [0, self.row-1]:
 			return col, row
 		dirs = self.dirs1
-		if row%2:
+		if row in self.quickmodlist:
 			dirs = self.dirs2
+		randomlist = []
+		
+		ways = 0
 		for d in dirs: #检查六个方向
 			if self.IsFree(col+d[0], row+d[1]):
-				return col+d[0], row+d[1]
+				#tempway = self.GetWays(col+d[0], row+d[1])
+				#if tempway > ways:
+				#	ways = tempway
+				#	randomlist = [(col+d[0], row+d[1])]
+				#elif tempway == ways:
+					randomlist.append((col+d[0], row+d[1]))
+
+		self.shuffle(randomlist)
+		if len(randomlist):
+			if len(randomlist) > 1 and (self.oldpos[0], self.oldpos[1]) in randomlist:
+				randomlist.remove((self.oldpos[0], self.oldpos[1]))
+			return randomlist[0][0],  randomlist[0][1]
 			
 		return -2,-2
 		
@@ -114,10 +136,10 @@ class CatGame:
 			field[y][x] = len(path) + 1 #把自己变成1, 防止无限递归
 			pathlen = len(path)
 			resultlen = len(self.result)
-			if pathlen > resultlen and resultlen != 0:
+			if pathlen >= resultlen and resultlen != 0:
 				return
 			if x in [0, 8] or y in [0, 8]: #如果到终点了
-				if len(self.result) >= len(path) or len(self.result) == 0:
+				if len(self.result) > len(path) or len(self.result) == 0:
 					self.result = path#将路径放入结果
 					return
 			dirs = self.dirs1
@@ -131,7 +153,7 @@ class CatGame:
 		
 		return self.result #将结果路径返回 
 		
-	def GetBestPath(self):#另一种方式，每个边界点定点取路，实际效果跟直接用边界点集做结束条件一样
+	def GetBestPath(self):#另一种方式，每个边界点定点取路，实际效果跟直接用边界点集做结束条件一样,当然更费时，所以不用
 		path = ''
 		for row in range(0, 9):
 			for col in [0, 8]:
@@ -140,7 +162,7 @@ class CatGame:
 					temppath = self.GetPath(data, self.catpos[0], self.catpos[1], col, row)
 					if len(temppath) < len(path) or len(path) == 0:
 						path = temppath
-		
+		dirs = self.dirs1			
 		for col in range(1, 8):
 			for row in [0, 8]:
 				data = copy.deepcopy(self.map)
@@ -182,7 +204,6 @@ class CatGame:
 		#self.PrintMap()
 		#print ''
 		#self.PrintWaysMap()
-		#self.PrintAnyMap(data)
 		return self.result #将结果路径返回 
 		
 		
@@ -206,18 +227,7 @@ class CatGame:
 			else:
 				print i
 			idx += 1
-		print self.result
-		print ''
-		
-	def PrintAnyMap(self, data):
-		idx = 0
-		for i in data:
-			if idx in self.quickmodlist:
-				print ' ' + str(i)
-			else:
-				print i
-			idx += 1
-		print self.result
+		print self.result	
 		print ''
 	
 	def TestGame(self):
@@ -269,12 +279,11 @@ class CatGame:
 			
 			if self.map[row][col] == 0:
 				self.SetWall(col, row)
-			t1 = time.time()
+			t = time.time()
 			x,y = self.GetNextPos()
-			dt = time.time() - t1
+			dt = time.time() - t
 			print dt
 			if x in [0,8] or y in [0,8]:
-				self.SetCatPos(x, y)
 				self.PrintMap()
 				print 'badend'
 				raw_input('>>>')
